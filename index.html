@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Control de Llamadas | Soporte SHIOL</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#00bcd4">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__title">CONTROL DE LLAMADAS</div>
+      <div class="brand__sub">Área de soporte • Sistema SHIOL</div>
+    </div>
+
+    <div class="topbar__actions">
+      <button id="btnEmpresas" class="btn btn--ghost">Empresas</button>
+      <button id="btnResponsables" class="btn btn--ghost">Responsables</button>
+
+      <button id="btnExport" class="btn btn--ghost">Exportar (JSON)</button>
+      <label class="btn btn--ghost" for="importFile">Importar</label>
+      <input id="importFile" type="file" accept="application/json" hidden />
+
+      <button id="btnReset" class="btn btn--ghost btn--danger">Borrar todo</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- NUEVO CASO -->
+    <section class="card">
+      <div class="card__header">
+        <h2>Nuevo caso</h2>
+        <p>Estado automático: CREADO → SEGUIMIENTO → FINALIZADO</p>
+      </div>
+
+      <form id="caseForm" class="grid">
+        <div class="field">
+          <label>Fecha</label>
+          <input id="fecha" type="date" required>
+        </div>
+
+        <div class="field">
+          <label>Módulo</label>
+          <select id="modulo" required></select>
+        </div>
+
+        <div class="field">
+          <label>Tipo</label>
+          <select id="tipo" required></select>
+        </div>
+
+        <div class="field">
+          <label>Canal</label>
+          <select id="canal" required></select>
+        </div>
+
+        <div class="field">
+          <label>Prioridad</label>
+          <select id="prioridad" required></select>
+        </div>
+
+        <!-- (columna derecha) - se deja vacío para mantener 2 columnas alineadas -->
+        <div class="field">
+          <label>&nbsp;</label>
+          <div class="hint"> </div>
+        </div>
+
+        <!-- ✅ EMPRESA IZQUIERDA -->
+        <div class="field">
+          <label>Empresa</label>
+          <select id="empresaSelect"></select>
+          <small class="hint">Se administra en el botón “Empresas”.</small>
+        </div>
+
+        <!-- ✅ RESPONSABLE CREAR DERECHA -->
+        <div class="field">
+          <label>Responsable de crear</label>
+          <select id="respCrear" required></select>
+          <small class="hint">Se administra en el botón “Responsables”.</small>
+        </div>
+
+        <div class="field">
+          <label>Contacto</label>
+          <input id="contacto" type="text" placeholder="Persona de contacto">
+        </div>
+
+        <div class="field">
+          <label>Teléfono</label>
+          <input id="telefono" type="tel" placeholder="999888777">
+        </div>
+
+        <div class="field">
+          <label>Correo</label>
+          <input id="correo" type="email" placeholder="correo@empresa.com">
+        </div>
+
+        <div class="field">
+          <label>SLA / Fecha compromiso (opcional)</label>
+          <input id="sla" type="date">
+        </div>
+
+        <div class="field">
+          <label>Ticket externo (opcional)</label>
+          <input id="ticketExterno" type="text" placeholder="Ej: JIRA-123 / correo / etc.">
+        </div>
+
+        <div class="field">
+          <label>&nbsp;</label>
+          <div class="hint"></div>
+        </div>
+
+        <div class="field field--span2">
+          <label>Observación</label>
+          <textarea id="observacion" rows="3" placeholder="Notas del caso…"></textarea>
+        </div>
+
+        <div class="field field--span2">
+          <label>Cargar imagen (opcional)</label>
+          <input id="imagen" type="file" accept="image/*">
+          <small class="hint">Se guarda offline dentro del sistema.</small>
+        </div>
+
+        <div class="field field--actions">
+          <button class="btn btn--primary" type="submit">Guardar</button>
+          <button class="btn" type="button" id="btnClearForm">Limpiar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="card">
+      <div class="card__header row">
+        <div>
+          <h2>Historial</h2>
+          <p>Selecciona un caso para ver/crear seguimientos.</p>
+        </div>
+
+        <div class="filters">
+          <input id="q" class="input" placeholder="Buscar (ID, empresa, obs, responsable)…" />
+          <select id="fEstado" class="input"></select>
+          <select id="fModulo" class="input"></select>
+          <button id="btnRefresh" class="btn btn--ghost2">Actualizar</button>
+        </div>
+      </div>
+
+      <div class="tableWrap">
+        <table class="table" id="casesTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ID</th>
+              <th>Fecha</th>
+              <th>Empresa</th>
+              <th>Módulo</th>
+              <th>Tipo</th>
+              <th>Canal</th>
+              <th>Prior.</th>
+              <th>Resp. crea</th>
+              <th>Resp. finaliza</th>
+              <th>Estado</th>
+              <th>Seg.</th>
+              <th>Img</th>
+              <th style="width:180px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SEGUIMIENTO -->
+    <section class="card" id="followCard" hidden>
+      <div class="card__header row">
+        <div>
+          <h2>Seguimiento</h2>
+          <p id="followMeta" class="muted"></p>
+        </div>
+        <div class="followActions">
+          <button id="btnCloseFollow" class="btn btn--ghost2">Cerrar</button>
+        </div>
+      </div>
+
+      <div class="split">
+        <div>
+          <form id="followForm" class="grid grid--follow">
+            <input type="hidden" id="followCaseId" />
+
+            <div class="field">
+              <label>Fecha seguimiento</label>
+              <input id="followFecha" type="datetime-local" required>
+            </div>
+
+            <div class="field">
+              <label>Responsable</label>
+              <select id="followResp" required></select>
+            </div>
+
+            <div class="field">
+              <label>Acción</label>
+              <select id="followAccion" required>
+                <option value="SEGUIMIENTO">SEGUIMIENTO</option>
+                <option value="FINALIZAR">FINALIZAR</option>
+              </select>
+              <small class="hint">Si eliges FINALIZAR, el caso queda FINALIZADO automáticamente.</small>
+            </div>
+
+            <div class="field field--span2">
+              <label>Acción / Nota</label>
+              <textarea id="followNota" rows="3" required placeholder="Qué se hizo / qué falta…"></textarea>
+            </div>
+
+            <div class="field field--span2">
+              <label>Próximo paso (opcional)</label>
+              <input id="followProx" type="text" placeholder="Ej: esperar respuesta usuario hoy 5pm">
+            </div>
+
+            <div class="field field--actions">
+              <button class="btn btn--primary" type="submit">Guardar seguimiento</button>
+            </div>
+          </form>
+        </div>
+
+        <div>
+          <div class="timelineHeader">
+            <h3>Historial de seguimientos</h3>
+            <button id="btnPrint" class="btn btn--ghost2">Imprimir / Guardar PDF</button>
+          </div>
+          <div id="timeline" class="timeline"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span class="dot"></span>
+      <span>Funciona sin internet (PWA). Los datos quedan en tu dispositivo.</span>
+    </footer>
+  </main>
+
+  <!-- DIALOG IMAGEN -->
+  <dialog id="dlgImg">
+    <div class="dlgHead">
+      <strong>Imagen del caso</strong>
+      <button id="dlgClose" class="btn btn--ghost2">Cerrar</button>
+    </div>
+    <img id="dlgImgEl" alt="Imagen" />
+  </dialog>
+
+  <!-- DIALOG EMPRESAS -->
+  <dialog id="dlgEmpresas">
+    <div class="dlgHead">
+      <strong>Empresas</strong>
+      <button id="dlgEmpClose" class="btn btn--ghost2">Cerrar</button>
+    </div>
+
+    <div class="dlgBody">
+      <div class="dlgGrid">
+        <form id="companyForm" class="grid grid--one">
+          <input type="hidden" id="companyId" />
+
+          <div class="field">
+            <label>Empresa</label>
+            <input id="empresaNombre" type="text" required placeholder="Ej: Clínica San Juan">
+          </div>
+
+          <div class="field">
+            <label>Contacto</label>
+            <input id="empresaContacto" type="text" placeholder="Ej: Juan Pérez">
+          </div>
+
+          <div class="field">
+            <label>Teléfono</label>
+            <input id="empresaTelefono" type="tel" placeholder="Ej: 999888777">
+          </div>
+
+          <div class="field">
+            <label>Correo</label>
+            <input id="empresaCorreo" type="email" placeholder="Ej: soporte@empresa.com">
+          </div>
+
+          <div class="field">
+            <label>Notas (opcional)</label>
+            <textarea id="empresaNotas" rows="3" placeholder="Horario, sede, particularidades…"></textarea>
+          </div>
+
+          <div class="field field--actions">
+            <button class="btn btn--primary" type="submit">Guardar</button>
+            <button class="btn" type="button" id="btnClearCompany">Limpiar</button>
+          </div>
+        </form>
+
+        <div>
+          <div class="dlgTools">
+            <input id="qEmpresa" class="input" placeholder="Buscar empresa…" />
+            <button id="btnRefreshEmp" class="btn btn--ghost2">Actualizar</button>
+          </div>
+
+          <div class="tableWrap">
+            <table class="table" id="companiesTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Empresa</th>
+                  <th>Contacto</th>
+                  <th>Teléfono</th>
+                  <th>Correo</th>
+                  <th style="width:170px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <p class="muted" style="margin:10px 0 0;">Al elegir empresa, se auto-llenan contacto/teléfono/correo (editable).</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- DIALOG RESPONSABLES -->
+  <dialog id="dlgResponsables">
+    <div class="dlgHead">
+      <strong>Responsables</strong>
+      <button id="dlgRespClose" class="btn btn--ghost2">Cerrar</button>
+    </div>
+
+    <div class="dlgBody">
+      <div class="dlgGrid">
+        <form id="respForm" class="grid grid--one">
+          <input type="hidden" id="respId" />
+
+          <div class="field">
+            <label>Nombre</label>
+            <input id="respNombre" type="text" required placeholder="Ej: Soporte 1 / Desarrollo 1">
+          </div>
+
+          <div class="field">
+            <label>Rol (opcional)</label>
+            <input id="respRol" type="text" placeholder="Ej: Soporte / Desarrollo / Contabilidad">
+          </div>
+
+          <div class="field">
+            <label>Teléfono (opcional)</label>
+            <input id="respTelefono" type="tel" placeholder="Ej: 999888777">
+          </div>
+
+          <div class="field">
+            <label>Correo (opcional)</label>
+            <input id="respCorreo" type="email" placeholder="Ej: nombre@empresa.com">
+          </div>
+
+          <div class="field field--actions">
+            <button class="btn btn--primary" type="submit">Guardar</button>
+            <button class="btn" type="button" id="btnClearResp">Limpiar</button>
+          </div>
+        </form>
+
+        <div>
+          <div class="dlgTools">
+            <input id="qResp" class="input" placeholder="Buscar responsable…" />
+            <button id="btnRefreshResp" class="btn btn--ghost2">Actualizar</button>
+          </div>
+
+          <div class="tableWrap">
+            <table class="table" id="respTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nombre</th>
+                  <th>Rol</th>
+                  <th>Teléfono</th>
+                  <th>Correo</th>
+                  <th style="width:170px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <p class="muted" style="margin:10px 0 0;">Esta tabla alimenta responsables del caso y seguimientos.</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

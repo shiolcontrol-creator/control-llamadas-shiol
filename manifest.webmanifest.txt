@@ -1,0 +1,9 @@
+{
+  "name": "Control de Llamadas - Soporte SHIOL",
+  "short_name": "Control Llamadas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#00bcd4",
+  "icons": []
+}
